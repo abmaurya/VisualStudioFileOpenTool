@@ -1,25 +1,25 @@
 ﻿using System;
 using System.IO;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using System.Runtime.InteropServices.ComTypes;
+using System.Linq;
 using EnvDTE;
 
-namespace VisualStudioFileOpenTool
+namespace VisualStudioTool
 {
     class Program
     {
         static void Main(string[] args)
         {
-            if (args.Length < 4)
+            if (args.Length < 5)
             {
                 return;
             }
 
-            string vsPath = args[0];
-            string solutionPath = args[1];
-            string filePath = args[2];
-            int fileLine;
-            int.TryParse(args[3], out fileLine);
+            bool openFile = args[0].Equals("open", StringComparison.OrdinalIgnoreCase);
+            string vsPath = args[1];
+            string solutionPath = args[2];
 
             try
             {
@@ -28,8 +28,15 @@ namespace VisualStudioFileOpenTool
                 {
                     dte = CreateNewRunningVSProWithOurSolution(vsPath, solutionPath);
                 }
-
-                HaveRunningVSProOpenFile(dte, filePath, fileLine);
+                if (openFile && int.TryParse(args[4], out int fileLine))
+                {
+                    string filePath = args[3];
+                    HaveRunningVSProOpenFile(dte, filePath, fileLine);
+                }
+                else if (int.TryParse(args[3], out int processID))
+                {
+                    AttachDebugger(dte, processID);
+                }
             }
             catch (Exception e)
             {
@@ -43,7 +50,6 @@ namespace VisualStudioFileOpenTool
         static DTE FindRunningVSProWithOurSolution(string solutionPath)
         {
             DTE dte = null;
-            object runningObject = null;
             IBindCtx bindCtx = null;
             IRunningObjectTable rot = null;
             IEnumMoniker enumMonikers = null;
@@ -59,7 +65,7 @@ namespace VisualStudioFileOpenTool
                 while (enumMonikers.Next(1, moniker, numberFetched) == 0)
                 {
                     IMoniker runningObjectMoniker = moniker[0];
-                    Marshal.ThrowExceptionForHR(rot.GetObject(runningObjectMoniker, out runningObject));
+                    Marshal.ThrowExceptionForHR(rot.GetObject(runningObjectMoniker, out object runningObject));
                     var dte2 = runningObject as DTE;
                     if (dte2 != null)
                     {
@@ -96,7 +102,6 @@ namespace VisualStudioFileOpenTool
         {
             string progId = ":" + processId.ToString();
             DTE dte = null;
-            object runningObject = null;
             IBindCtx bindCtx = null;
             IRunningObjectTable rot = null;
             IEnumMoniker enumMonikers = null;
@@ -128,7 +133,7 @@ namespace VisualStudioFileOpenTool
 
                     if (!string.IsNullOrEmpty(name) && name.Contains(progId))
                     {
-                        Marshal.ThrowExceptionForHR(rot.GetObject(runningObjectMoniker, out runningObject));
+                        Marshal.ThrowExceptionForHR(rot.GetObject(runningObjectMoniker, out object runningObject));
                         dte = runningObject as DTE;
                         if (dte != null)
                         {
@@ -199,6 +204,21 @@ namespace VisualStudioFileOpenTool
             var textSelection = (TextSelection)window.Selection;
             textSelection.GotoLine(fileLine, true);
             Marshal.ReleaseComObject(dte);
+        }
+
+        static void AttachDebugger(DTE dte, int processID)
+        {
+            if (dte == null)
+            {
+                return;
+            }
+
+            IEnumerable<Process> processes = dte.Debugger.LocalProcesses.OfType<Process>();
+            var process = processes.SingleOrDefault(x => x.ProcessID == processID);
+            if (process != null)
+            {
+                process.Attach();
+            }
         }
     }
 }

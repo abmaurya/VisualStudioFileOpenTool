@@ -6,9 +6,9 @@
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
     <ProjectGuid>{94D9B012-81D2-4B32-B408-523B0B96EC9B}</ProjectGuid>
     <OutputType>Exe</OutputType>
-    <RootNamespace>VisualStudioFileOpenTool</RootNamespace>
-    <AssemblyName>VisualStudioFileOpenTool</AssemblyName>
-    <TargetFrameworkVersion>v4.6.1</TargetFrameworkVersion>
+    <RootNamespace>VisualStudioTool</RootNamespace>
+    <AssemblyName>VisualStudioTool</AssemblyName>
+    <TargetFrameworkVersion>v4.8</TargetFrameworkVersion>
     <FileAlignment>512</FileAlignment>
     <Deterministic>true</Deterministic>
     <TargetFrameworkProfile />
