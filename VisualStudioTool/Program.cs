@@ -12,12 +12,16 @@ namespace VisualStudioTool
     {
         static void Main(string[] args)
         {
-            if (args.Length < 5)
+            if (args.Length < 4)
             {
                 return;
             }
 
-            bool openFile = args[0].Equals("open", StringComparison.OrdinalIgnoreCase);
+            bool openFile = args[0].Equals("openf", StringComparison.OrdinalIgnoreCase);
+            if (openFile && args.Length < 5)
+            {
+                return;
+            }
             string vsPath = args[1];
             string solutionPath = args[2];
 
