@@ -12,16 +12,25 @@ namespace VisualStudioTool
     {
         static void Main(string[] args)
         {
-            if (args.Length < 4)
+            if (args.Length < 3)
             {
+            	Console.WriteLine("Too few arguments.");
                 return;
             }
 
+            bool attachDebugger = args[0].Equals("debug", StringComparison.OrdinalIgnoreCase);
             bool openFile = args[0].Equals("openf", StringComparison.OrdinalIgnoreCase);
-            if (openFile && args.Length < 5)
+            if(attachDebugger && args.Length < 4)
             {
+            	Console.WriteLine("Too few arguments to attach to debugger.");
                 return;
             }
+            else if (openFile && args.Length < 5)
+            {
+            	Console.WriteLine("Too few arguments to open file.");
+                return;
+            }
+            
             string vsPath = args[1];
             string solutionPath = args[2];
 
@@ -37,9 +46,14 @@ namespace VisualStudioTool
                     string filePath = args[3];
                     HaveRunningVSProOpenFile(dte, filePath, fileLine);
                 }
-                else if (int.TryParse(args[3], out int processID))
+                else if (attachDebugger && int.TryParse(args[3], out int processID))
                 {
                     AttachDebugger(dte, processID);
+                }
+                else
+                {
+                    FocusVS(dte);
+                    Marshal.ReleaseComObject(dte);
                 }
             }
             catch (Exception e)
@@ -194,15 +208,19 @@ namespace VisualStudioTool
         [DllImport("user32.dll")]
         private static extern bool SetForegroundWindow(IntPtr hWnd);
 
-        static void HaveRunningVSProOpenFile(DTE dte, string filePath, int fileLine)
+        private static void FocusVS(DTE dte)
         {
             if (dte == null)
             {
                 return;
             }
-
             dte.MainWindow.Activate();
             SetForegroundWindow(new IntPtr(dte.MainWindow.HWnd));
+        }
+
+        private static void HaveRunningVSProOpenFile(DTE dte, string filePath, int fileLine)
+        {
+            FocusVS(dte);
 
             var window = dte.ItemOperations.OpenFile(filePath);
             var textSelection = (TextSelection)window.Selection;
@@ -210,12 +228,9 @@ namespace VisualStudioTool
             Marshal.ReleaseComObject(dte);
         }
 
-        static void AttachDebugger(DTE dte, int processID)
+        private static void AttachDebugger(DTE dte, int processID)
         {
-            if (dte == null)
-            {
-                return;
-            }
+            FocusVS(dte);
 
             IEnumerable<Process> processes = dte.Debugger.LocalProcesses.OfType<Process>();
             var process = processes.SingleOrDefault(x => x.ProcessID == processID);
@@ -223,6 +238,7 @@ namespace VisualStudioTool
             {
                 process.Attach();
             }
+            Marshal.ReleaseComObject(dte);
         }
     }
 }
