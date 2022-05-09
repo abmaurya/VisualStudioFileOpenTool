@@ -10,41 +10,42 @@ namespace VisualStudioTool
 {
     class Program
     {
+        [STAThread]
         static void Main(string[] args)
         {
             if (args.Length < 3)
             {
-            	Console.WriteLine("Too few arguments.");
+                Console.WriteLine("Too few arguments.");
                 return;
             }
 
             bool attachDebugger = args[0].Equals("debug", StringComparison.OrdinalIgnoreCase);
             bool openFile = args[0].Equals("openf", StringComparison.OrdinalIgnoreCase);
-            if(attachDebugger && args.Length < 4)
+            if (attachDebugger && args.Length < 4)
             {
-            	Console.WriteLine("Too few arguments to attach to debugger.");
+                Console.WriteLine("Too few arguments to attach to debugger.");
                 return;
             }
             else if (openFile && args.Length < 5)
             {
-            	Console.WriteLine("Too few arguments to open file.");
+                Console.WriteLine("Too few arguments to open file.");
                 return;
             }
-            
+
             string vsPath = args[1];
             string solutionPath = args[2];
-
             try
             {
-                var dte = FindRunningVSProWithOurSolution(solutionPath);
+                DTE dte = FindRunningVSWithOurSolution(solutionPath);
                 if (dte == null)
                 {
-                    dte = CreateNewRunningVSProWithOurSolution(vsPath, solutionPath);
+                    dte = CreateNewRunningVSWithOurSolution(vsPath, solutionPath, openFile);
                 }
+
                 if (openFile && int.TryParse(args[4], out int fileLine))
                 {
                     string filePath = args[3];
-                    HaveRunningVSProOpenFile(dte, filePath, fileLine);
+                    HaveRunningVSOpenFile(dte, filePath, fileLine);
                 }
                 else if (attachDebugger && int.TryParse(args[3], out int processID))
                 {
@@ -52,20 +53,23 @@ namespace VisualStudioTool
                 }
                 else
                 {
-                    FocusVS(dte);
+                    OpenSolutionInVS(dte);
                     Marshal.ReleaseComObject(dte);
                 }
+                MessageFilter.Revoke();
             }
             catch (Exception e)
             {
-                Console.Write(e.Message);
+                Console.WriteLine(e.Message);
+                Console.WriteLine(e.InnerException);
+                Console.WriteLine(e.StackTrace);
             }
         }
 
         [DllImport("ole32.dll")]
         private static extern int CreateBindCtx(uint reserved, out IBindCtx ppbc);
 
-        static DTE FindRunningVSProWithOurSolution(string solutionPath)
+        static DTE FindRunningVSWithOurSolution(string solutionPath)
         {
             DTE dte = null;
             IBindCtx bindCtx = null;
@@ -84,7 +88,7 @@ namespace VisualStudioTool
                 {
                     IMoniker runningObjectMoniker = moniker[0];
                     Marshal.ThrowExceptionForHR(rot.GetObject(runningObjectMoniker, out object runningObject));
-                    var dte2 = runningObject as DTE;
+                    DTE dte2 = runningObject as DTE;
                     if (dte2 != null)
                     {
                         if (dte2.Solution.FullName == solutionPath)
@@ -116,7 +120,7 @@ namespace VisualStudioTool
             return dte;
         }
 
-        static DTE FindRunningVSProWithOurProcess(int processId)
+        static DTE FindRunningVSWithOurProcess(int processId)
         {
             string progId = ":" + processId.ToString();
             DTE dte = null;
@@ -180,24 +184,25 @@ namespace VisualStudioTool
 
             return dte;
         }
-
-        static DTE CreateNewRunningVSProWithOurSolution(string vsPath, string solutionPath)
+        
+        [STAThread]
+        static DTE CreateNewRunningVSWithOurSolution(string vsPath, string solutionPath, bool fileOp)
         {
             if (!File.Exists(vsPath))
             {
                 return null;
             }
-
-            var devenv = System.Diagnostics.Process.Start(vsPath, solutionPath);
+            
+            System.Diagnostics.Process devenv = System.Diagnostics.Process.Start(vsPath, solutionPath);
+            
 
             DTE dte = null;
             do
             {
                 System.Threading.Thread.Sleep(2000);
-                dte = FindRunningVSProWithOurProcess(devenv.Id);
-            }
-            while (dte == null);
-
+                dte = FindRunningVSWithOurProcess(devenv.Id);
+            }while (dte == null);
+            MessageFilter.Register();
             do
             {
                 System.Threading.Thread.Sleep(1000);
@@ -208,7 +213,7 @@ namespace VisualStudioTool
         [DllImport("user32.dll")]
         private static extern bool SetForegroundWindow(IntPtr hWnd);
 
-        private static void FocusVS(DTE dte)
+        private static void OpenSolutionInVS(DTE dte)
         {
             if (dte == null)
             {
@@ -218,22 +223,19 @@ namespace VisualStudioTool
             SetForegroundWindow(new IntPtr(dte.MainWindow.HWnd));
         }
 
-        private static void HaveRunningVSProOpenFile(DTE dte, string filePath, int fileLine)
+        private static void HaveRunningVSOpenFile(DTE dte, string filePath, int fileLine)
         {
-            FocusVS(dte);
+            OpenSolutionInVS(dte);
 
-            var window = dte.ItemOperations.OpenFile(filePath);
-            var textSelection = (TextSelection)window.Selection;
-            textSelection.GotoLine(fileLine, true);
+            dte.ItemOperations.OpenFile(filePath);
+            dte.ActiveDocument.Selection.GotoLine(fileLine, true);
             Marshal.ReleaseComObject(dte);
         }
 
         private static void AttachDebugger(DTE dte, int processID)
         {
-            FocusVS(dte);
-
             IEnumerable<Process> processes = dte.Debugger.LocalProcesses.OfType<Process>();
-            var process = processes.SingleOrDefault(x => x.ProcessID == processID);
+            Process process = processes.SingleOrDefault(x => x.ProcessID == processID);
             if (process != null)
             {
                 process.Attach();
