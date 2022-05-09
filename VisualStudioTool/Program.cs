@@ -20,6 +20,7 @@ namespace VisualStudioTool
             }
 
             bool attachDebugger = args[0].Equals("debug", StringComparison.OrdinalIgnoreCase);
+            bool stopDebugger = args[0].Equals("stopdebug", StringComparison.OrdinalIgnoreCase);
             bool openFile = args[0].Equals("openf", StringComparison.OrdinalIgnoreCase);
             if (attachDebugger && args.Length < 4)
             {
@@ -42,6 +43,12 @@ namespace VisualStudioTool
                     dte = CreateNewRunningVSWithOurSolution(vsPath, solutionPath, openFile);
                 }
 
+                //Handle the case where the project solution is already opened
+                if (!MessageFilter.FilterRegistered)
+                {
+                    MessageFilter.Register();
+                }
+
                 if (openFile && int.TryParse(args[4], out int fileLine))
                 {
                     string filePath = args[3];
@@ -51,11 +58,15 @@ namespace VisualStudioTool
                 {
                     AttachDebugger(dte, processID);
                 }
+                else if (stopDebugger)
+                {
+                    StopDebugger(dte);
+                }
                 else
                 {
                     OpenSolutionInVS(dte);
-                    Marshal.ReleaseComObject(dte);
                 }
+                Marshal.ReleaseComObject(dte);
                 MessageFilter.Revoke();
             }
             catch (Exception e)
@@ -184,7 +195,7 @@ namespace VisualStudioTool
 
             return dte;
         }
-        
+
         [STAThread]
         static DTE CreateNewRunningVSWithOurSolution(string vsPath, string solutionPath, bool fileOp)
         {
@@ -192,16 +203,16 @@ namespace VisualStudioTool
             {
                 return null;
             }
-            
+
             System.Diagnostics.Process devenv = System.Diagnostics.Process.Start(vsPath, solutionPath);
-            
+
 
             DTE dte = null;
             do
             {
                 System.Threading.Thread.Sleep(2000);
                 dte = FindRunningVSWithOurProcess(devenv.Id);
-            }while (dte == null);
+            } while (dte == null);
             MessageFilter.Register();
             do
             {
@@ -229,7 +240,6 @@ namespace VisualStudioTool
 
             dte.ItemOperations.OpenFile(filePath);
             dte.ActiveDocument.Selection.GotoLine(fileLine, true);
-            Marshal.ReleaseComObject(dte);
         }
 
         private static void AttachDebugger(DTE dte, int processID)
@@ -240,7 +250,11 @@ namespace VisualStudioTool
             {
                 process.Attach();
             }
-            Marshal.ReleaseComObject(dte);
+        }
+
+        private static void StopDebugger(DTE dte)
+        {
+            dte.Debugger.Stop();
         }
     }
 }
