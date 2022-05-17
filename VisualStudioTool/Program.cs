@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using System.Collections.Generic;
 using System.Runtime.InteropServices;
@@ -204,7 +204,7 @@ namespace VisualStudioTool
                 return null;
             }
 
-            System.Diagnostics.Process devenv = System.Diagnostics.Process.Start(vsPath, solutionPath);
+            System.Diagnostics.Process devenv = System.Diagnostics.Process.Start(vsPath, QuotePathIfNeeded(solutionPath));
 
 
             DTE dte = null;
@@ -219,6 +219,15 @@ namespace VisualStudioTool
                 System.Threading.Thread.Sleep(1000);
             } while (dte.ItemOperations == null);
             return dte;
+        }
+
+        private static string QuotePathIfNeeded(string path)
+        {
+            if (!path.Contains(" "))
+            {
+                return path;
+            }
+            return "\"" + path + "\"";
         }
 
         [DllImport("user32.dll")]
