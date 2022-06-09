@@ -3,15 +3,16 @@ using System.Runtime.InteropServices;
 
 namespace VisualStudioTool
 {
+    // Class containing the IOleMessageFilter
+    // thread error-handling functions.
     public class MessageFilter : IOleMessageFilter
     {
-        //
-        // Class containing the IOleMessageFilter
-        // thread error-handling functions.
+        public static bool FilterRegistered { get; private set; } = false;
 
         // Start the filter.
         public static void Register()
         {
+            FilterRegistered = true;
             IOleMessageFilter newFilter = new MessageFilter();
             IOleMessageFilter oldFilter = null;
             int hr = CoRegisterMessageFilter(newFilter, out oldFilter);
@@ -22,6 +23,7 @@ namespace VisualStudioTool
         // Done with the filter, close it.
         public static void Revoke()
         {
+            FilterRegistered = false;
             IOleMessageFilter oldFilter = null;
             CoRegisterMessageFilter(null, out oldFilter);
         }
