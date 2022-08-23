@@ -30,3 +30,4 @@ Icon7
 
 .project
 .vs
+*.csproj
