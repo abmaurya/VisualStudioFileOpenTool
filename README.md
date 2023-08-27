@@ -1,5 +1,5 @@
-# VisualStudioFileOpenTool
-Visual Studio File Open Tool
+# Visual Studio Commandline Tool
+Visual Studio Commandline Tool
 
 	usage: <openf|debug|openp|stopdebug|build|rebuild> <visual_studio_path> <solution_path> [<file_path> <file_line_number>] |[<PID_of_process_to_attach_to_debugger> | <Build_Config>]
 	
